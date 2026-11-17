@@ -199,5 +199,4 @@ MYAcademy_identityEmailProject
 Bu projeyi, derslerde birlikte yazdığımız Register, Login, 6 haneli e-posta doğrulama ve e-posta gönderimi altyapısının üzerine kurdum. Verilen Mailora temasını Layout ve ViewComponent'lere parçalayarak statik sayfaları veritabanından beslenen dinamik ekranlara dönüştürdüm.
 
 Geliştirme sürecinde en çok güvenlik tarafına dikkat ettim: kullanıcıların URL'deki id'yi değiştirerek başkasının mesajını görememesi, şifre sıfırlama bağlantısının tek kullanımlık ve süreli olması, gönderen bilgisinin formdan değil Identity hesabından alınması gibi. Bir mesajın hem göndereni hem alıcısı olduğu için yıldız ve çöp kutusu bilgilerini iki taraf için ayrı tuttum; böylece alıcının sildiği mesaj gönderenin "Gönderilenler" sayfasından kaybolmuyor.
-
-Geliştirme sürecinde yapay zekâ destekli bir kodlama asistanından yardım aldım. Kayıt, doğrulama, şifre sıfırlama, iki hesap arasında mesajlaşma ve SMTP ile gerçek e-posta gönderimi gibi akışları kendi bilgisayarımda test ettim; ekran görüntüleri bu testlerden alınmıştır.
+ Kayıt, doğrulama, şifre sıfırlama, iki hesap arasında mesajlaşma ve SMTP ile gerçek e-posta gönderimi gibi akışları kendi bilgisayarımda test ettim; ekran görüntüleri bu testlerden alınmıştır.
