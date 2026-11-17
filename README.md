@@ -155,6 +155,10 @@ MYAcademy_identityEmailProject
 |---|---|
 | ![Giriş](docs/screenshots/01-giris.png) | ![Hatalı giriş](docs/screenshots/02-hatali-giris.png) |
 
+| 5 hatalı denemede hesap kilitleme (5 dk) |
+|---|
+| ![Hesap kilitleme](docs/screenshots/15-hesap-kilitlenme.png) |
+
 | E-posta doğrulama (6 haneli kod) | Doğrulama kodu e-postası |
 |---|---|
 | ![E-posta doğrulama](docs/screenshots/03-email-dogrulama.png) | ![Doğrulama kodu maili](docs/screenshots/04-dogrulama-kodu-maili.png) |
