@@ -1,0 +1,112 @@
+@model ConfirmMailViewModel
+@{
+    ViewData["Title"] = "E-posta Doğrulama";
+    Layout = "~/Views/Shared/_AuthLayout.cshtml";
+    var codeError = ViewData.ModelState.TryGetValue("Code", out var ce) ? ce.Errors.FirstOrDefault()?.ErrorMessage : null;
+    var emailError = ViewData.ModelState.TryGetValue("Email", out var ee) ? ee.Errors.FirstOrDefault()?.ErrorMessage : null;
+    var hasEmail = !string.IsNullOrWhiteSpace(Model.Email) && emailError == null;
+}
+
+<div class="auth-icon"><i class="bi bi-envelope-check"></i></div>
+<div class="form-head">
+    <h1>E-postanızı doğrulayın</h1>
+    @if (hasEmail)
+    {
+        <p><span class="mail-chip"><i class="bi bi-envelope"></i> @Model.Email</span> adresine gönderilen <b>6 haneli kodu</b> girin. Kod 10 dakika geçerlidir.</p>
+    }
+    else
+    {
+        <p>Kayıt olurken kullandığınız e-posta adresini ve size gönderilen <b>6 haneli kodu</b> girin.</p>
+    }
+</div>
+
+<form method="post" asp-controller="ConfirmMail" asp-action="Index" id="confirmForm" novalidate data-lock>
+    <div asp-validation-summary="ModelOnly"></div>
+
+    <div class="auth-stack">
+        @if (hasEmail)
+        {
+            <input type="hidden" asp-for="Email">
+        }
+        else
+        {
+            <div class="field @(emailError == null ? "" : "is-invalid")">
+                <label asp-for="Email">E-posta <span class="req">*</span></label>
+                <div class="input-wrap">
+                    <i class="bi bi-envelope lead"></i>
+                    <input class="a-input" asp-for="Email" type="email" placeholder="ad.soyad@ornek.com" autocomplete="email">
+                </div>
+                <span class="field-error">@emailError</span>
+            </div>
+        }
+
+        <div class="field">
+            <label>Doğrulama Kodu <span class="req">*</span></label>
+            <div class="code-inputs @(codeError == null ? "" : "has-error")" id="codeBoxes">
+                @for (var i = 0; i < 6; i++)
+                {
+                    <input type="text" inputmode="numeric" maxlength="1" autocomplete="@(i == 0 ? "one-time-code" : "off")" aria-label="@(i + 1). hane">
+                }
+            </div>
+            <input type="hidden" asp-for="Code" id="codeValue">
+            <span class="field-error">@codeError</span>
+        </div>
+    </div>
+
+    <button type="submit" class="btn-primary-x">
+        <span class="lbl">Hesabımı Doğrula</span><i class="bi bi-shield-check"></i>
+    </button>
+</form>
+
+<form method="post" asp-controller="ConfirmMail" asp-action="Resend" id="resendForm">
+    <input type="hidden" name="email" value="@Model.Email" id="resendEmail">
+    <button type="submit" class="btn-ghost-x"><i class="bi bi-arrow-repeat"></i> Kodu tekrar gönder</button>
+</form>
+
+<div class="form-foot">Zaten doğruladınız mı? <a asp-controller="Login" asp-action="SignIn">Giriş Yap</a></div>
+
+@section Scripts {
+    <script>
+        // 6 kutucuklu kod girişi: rakam yazınca sonraki kutuya geçer, yapıştırınca dağıtır
+        (() => {
+            const boxes = [...document.querySelectorAll('#codeBoxes input')];
+            const hidden = document.getElementById('codeValue');
+            const sync = () => { hidden.value = boxes.map(b => b.value).join(''); };
+
+            (hidden.value || '').split('').slice(0, 6).forEach((d, i) => boxes[i].value = d);
+
+            boxes.forEach((box, i) => {
+                box.addEventListener('input', () => {
+                    box.value = box.value.replace(/\D/g, '').slice(-1);
+                    if (box.value && i < 5) boxes[i + 1].focus();
+                    sync();
+                    if (hidden.value.length === 6) document.getElementById('confirmForm').requestSubmit();
+                });
+                box.addEventListener('keydown', e => {
+                    if (e.key === 'Backspace' && !box.value && i > 0) boxes[i - 1].focus();
+                    if (e.key === 'ArrowLeft' && i > 0) boxes[i - 1].focus();
+                    if (e.key === 'ArrowRight' && i < 5) boxes[i + 1].focus();
+                });
+                box.addEventListener('paste', e => {
+                    const digits = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+                    if (!digits) return;
+                    e.preventDefault();
+                    digits.split('').forEach((d, j) => { if (boxes[j]) boxes[j].value = d; });
+                    sync();
+                    boxes[Math.min(digits.length, 5)].focus();
+                    if (digits.length === 6) document.getElementById('confirmForm').requestSubmit();
+                });
+            });
+
+            // E-posta alanı varsa "Kodu tekrar gönder" formu da aynı adresi kullansın
+            const emailInput = document.querySelector('#confirmForm input[type="email"]');
+            if (emailInput) {
+                const r = document.getElementById('resendEmail');
+                emailInput.addEventListener('input', () => r.value = emailInput.value);
+            }
+
+            const firstEmpty = boxes.find(b => !b.value);
+            if (!emailInput || emailInput.value) (firstEmpty || boxes[5]).focus();
+        })();
+    </script>
+}

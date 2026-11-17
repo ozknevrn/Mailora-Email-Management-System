@@ -1,0 +1,197 @@
+@model MessageDetailViewModel
+@using MYAcademy_IdentityEmailProject.Helpers
+@{
+    ViewData["Title"] = Model.Subject;
+    Layout = "~/Views/MessageLayout/Index.cshtml";
+
+    var side = Model.IsIncoming ? "in" : "out";
+    var target = $"{Model.Id}:{side}";
+    var backAction = Model.BackBox switch { "sent" => "Sendbox", "starred" => "Starred", "drafts" => "Drafts", "trash" => "Trash", _ => "Inbox" };
+    var backTitle = Model.BackBox switch { "sent" => "Gönderilenler", "starred" => "Yıldızlı", "drafts" => "Taslaklar", "trash" => "Çöp Kutusu", _ => "Gelen Kutusu" };
+    var backUrl = Url.Action(backAction, "Message");
+    var selfUrl = Url.Action("MessageDetail", "Message", new { id = Model.Id, box = Model.BackBox });
+    var otherName = Model.IsIncoming ? Model.SenderName : Model.ReceiverName;
+    var otherEmail = Model.IsIncoming ? Model.SenderEmail : Model.ReceiverEmail;
+    var color = Model.CategoryColor ?? "#8B7FD6";
+}
+
+<style>
+    .mp-toolbar form { display: contents; }
+    .pv-body blockquote { border-left: 3px solid #E4E1F5; margin: 12px 0; padding: 4px 0 4px 14px; color: #6B6F84; }
+    .pv-body a { color: var(--accent-dark); }
+    .ext-note { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: #9A6A12; background: #FDF3E1; padding: 8px 12px; border-radius: 10px; margin-bottom: 14px; }
+    .trash-note { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: #A3304F; background: #FBE7EE; padding: 8px 12px; border-radius: 10px; margin-bottom: 14px; }
+    .pv-actions form { display: inline; }
+</style>
+
+<section class="msg-page" id="msgPage">
+
+    
+    <div class="mp-top">
+        <a class="btn-soft mp-back" href="@backUrl" title="@backTitle sayfasına dön" style="text-decoration:none"><i class="bi bi-arrow-left"></i><span>@backTitle</span></a>
+        <div class="mp-toolbar" role="toolbar" aria-label="Mesaj işlemleri">
+            @if (!Model.IsInTrash)
+            {
+                <a class="tool-btn" asp-action="CreateMessage" asp-route-replyTo="@Model.Id" title="Yanıtla"><i class="bi bi-reply"></i></a>
+                <a class="tool-btn" asp-action="CreateMessage" asp-route-forwardId="@Model.Id" title="İlet"><i class="bi bi-forward"></i></a>
+                <span class="tb-divider"></span>
+                @if (Model.IsIncoming)
+                {
+                    <form method="post" asp-action="Bulk">
+                        <input type="hidden" name="ids" value="@target"><input type="hidden" name="op" value="unread"><input type="hidden" name="returnUrl" value="@backUrl">
+                        <button class="tool-btn" type="submit" title="Okunmadı olarak işaretle"><i class="bi bi-envelope"></i></button>
+                    </form>
+                }
+                <form method="post" asp-action="Bulk">
+                    <input type="hidden" name="ids" value="@target"><input type="hidden" name="op" value="trash"><input type="hidden" name="returnUrl" value="@backUrl">
+                    <button class="tool-btn" type="submit" title="Çöp kutusuna taşı"><i class="bi bi-trash3"></i></button>
+                </form>
+            }
+            else
+            {
+                <form method="post" asp-action="Bulk">
+                    <input type="hidden" name="ids" value="@target"><input type="hidden" name="op" value="restore"><input type="hidden" name="returnUrl" value="@selfUrl">
+                    <button class="tool-btn" type="submit" title="Geri al"><i class="bi bi-arrow-counterclockwise"></i></button>
+                </form>
+            }
+            <button class="tool-btn hide-xs" type="button" onclick="window.print()" title="Yazdır"><i class="bi bi-printer"></i></button>
+            <span class="tb-divider"></span>
+            @if (Model.PrevId.HasValue)
+            {
+                <a class="tool-btn" asp-action="MessageDetail" asp-route-id="@Model.PrevId" asp-route-box="@Model.BackBox" title="Önceki mesaj (k)" id="prevMsg"><i class="bi bi-chevron-left"></i></a>
+            }
+            else
+            {
+                <button class="tool-btn" disabled><i class="bi bi-chevron-left"></i></button>
+            }
+            @if (Model.NextId.HasValue)
+            {
+                <a class="tool-btn" asp-action="MessageDetail" asp-route-id="@Model.NextId" asp-route-box="@Model.BackBox" title="Sonraki mesaj (j)" id="nextMsg"><i class="bi bi-chevron-right"></i></a>
+            }
+            else
+            {
+                <button class="tool-btn" disabled><i class="bi bi-chevron-right"></i></button>
+            }
+        </div>
+    </div>
+
+    <div class="mp-grid">
+       
+        <article class="mp-card">
+            @if (Model.IsInTrash)
+            {
+                <div class="trash-note"><i class="bi bi-trash3"></i> Bu mesaj çöp kutusunda. Geri alabilir veya kalıcı olarak silebilirsiniz.</div>
+            }
+            else if (!Model.IsIncoming && !Model.ReceiverIsRegistered)
+            {
+                <div class="ext-note"><i class="bi bi-globe2"></i> Alıcı Mailora'da kayıtlı değil; bu mesaj gerçek e-posta (SMTP) olarak gönderildi.</div>
+            }
+
+            <div class="pv-subject-row">
+                <h1 class="pv-subject">@Model.Subject</h1>
+                @if (!Model.IsInTrash)
+                {
+                    <form method="post" asp-action="ToggleStar" style="display:inline">
+                        <input type="hidden" name="id" value="@Model.Id"><input type="hidden" name="side" value="@side"><input type="hidden" name="returnUrl" value="@selfUrl">
+                        <button class="star-btn @(Model.IsStarred ? "on" : "")" type="submit" title="@(Model.IsStarred ? "Yıldızı kaldır" : "Yıldızla")"><i class="bi @(Model.IsStarred ? "bi-star-fill" : "bi-star")"></i></button>
+                    </form>
+                }
+            </div>
+            <div class="mb-3 d-flex gap-2 flex-wrap">
+                <a class="tag" style="background:@(color)22;color:@color;text-decoration:none" asp-action="Inbox" asp-route-categoryId="@Model.CategoryId"><i class="bi bi-tag"></i> @Model.CategoryName</a>
+                <span class="tag" style="background:var(--bg);color:var(--muted)"><i class="bi @(Model.IsIncoming ? "bi-inbox" : "bi-send")"></i> @(Model.IsIncoming ? "Gelen" : "Gönderilen")</span>
+            </div>
+
+            <div class="pv-sender">
+                @if (!string.IsNullOrEmpty(Model.SenderImageUrl))
+                {
+                    <span class="avatar lg av-user"><img src="@Model.SenderImageUrl" alt="@Model.SenderName"></span>
+                }
+                else
+                {
+                    <span class="avatar lg @MailoraUi.AvatarColor(Model.SenderEmail)">@MailoraUi.Initials(Model.SenderName)</span>
+                }
+                <div class="who">
+                    <div class="nm">@Model.SenderName <span class="em">&lt;@Model.SenderEmail&gt;</span></div>
+                    <div class="to"><b>Kime:</b> @Model.ReceiverName &lt;@Model.ReceiverEmail&gt;</div>
+                </div>
+                <div class="dt"><b>@Model.SendDate.ToString("d MMMM yyyy", MailoraUi.Tr)</b> @Model.SendDate.ToString("dddd HH:mm", MailoraUi.Tr)</div>
+            </div>
+
+            
+            <div class="pv-body">@Html.Raw(Model.SafeHtmlBody)</div>
+
+            <div class="pv-actions">
+                @if (!Model.IsInTrash)
+                {
+                    <a class="btn-soft primary" asp-action="CreateMessage" asp-route-replyTo="@Model.Id" style="text-decoration:none"><i class="bi bi-reply-fill"></i> Yanıtla</a>
+                    <a class="btn-soft" asp-action="CreateMessage" asp-route-forwardId="@Model.Id" style="text-decoration:none"><i class="bi bi-forward-fill"></i> İlet</a>
+                    <form method="post" asp-action="ToggleStar">
+                        <input type="hidden" name="id" value="@Model.Id"><input type="hidden" name="side" value="@side"><input type="hidden" name="returnUrl" value="@selfUrl">
+                        <button class="btn-soft" type="submit"><i class="bi @(Model.IsStarred ? "bi-star-fill" : "bi-star")" style="@(Model.IsStarred ? "color:#F2B84B" : "")"></i> @(Model.IsStarred ? "Yıldızı Kaldır" : "Yıldızla")</button>
+                    </form>
+                    <form method="post" asp-action="Bulk">
+                        <input type="hidden" name="ids" value="@target"><input type="hidden" name="op" value="trash"><input type="hidden" name="returnUrl" value="@backUrl">
+                        <button class="btn-soft danger" type="submit"><i class="bi bi-trash3"></i> Çöpe Taşı</button>
+                    </form>
+                }
+                else
+                {
+                    <form method="post" asp-action="Bulk">
+                        <input type="hidden" name="ids" value="@target"><input type="hidden" name="op" value="restore"><input type="hidden" name="returnUrl" value="@selfUrl">
+                        <button class="btn-soft primary" type="submit"><i class="bi bi-arrow-counterclockwise"></i> Geri Al</button>
+                    </form>
+                    <form method="post" asp-action="Bulk" onsubmit="return confirm('Bu mesaj kalıcı olarak silinecek. Bu işlem geri alınamaz.');">
+                        <input type="hidden" name="ids" value="@target"><input type="hidden" name="op" value="delete"><input type="hidden" name="returnUrl" value="@Url.Action("Trash", "Message")">
+                        <button class="btn-soft danger" type="submit"><i class="bi bi-x-octagon"></i> Kalıcı Olarak Sil</button>
+                    </form>
+                }
+            </div>
+        </article>
+
+        
+        <aside class="mp-side">
+            <div class="mp-side-card">
+                <h6>@(Model.IsIncoming ? "Gönderen" : "Alıcı")</h6>
+                <div class="mp-contact">
+                    <span class="avatar lg @MailoraUi.AvatarColor(otherEmail)">@MailoraUi.Initials(otherName)</span>
+                    <div style="min-width:0">
+                        <div class="nm">@otherName</div>
+                        <div class="em">@otherEmail</div>
+                    </div>
+                </div>
+                <div class="mp-contact-actions">
+                    <a class="btn-soft" asp-action="CreateMessage" asp-route-to="@otherEmail" style="text-decoration:none"><i class="bi bi-send"></i> Mesaj Gönder</a>
+                    <button type="button" class="btn-soft" id="copyEmail" data-email="@otherEmail"><i class="bi bi-copy"></i> Kopyala</button>
+                </div>
+                <ul class="mp-facts">
+                    <li><span class="k"><i class="bi bi-tag"></i> Kategori</span><span class="v">@Model.CategoryName</span></li>
+                    <li><span class="k"><i class="bi bi-star"></i> Durum</span><span class="v">@(Model.IsStarred ? "Yıldızlı" : "Normal")</span></li>
+                    <li><span class="k"><i class="bi bi-clock"></i> @(Model.IsIncoming ? "Alındı" : "Gönderildi")</span><span class="v">@MailoraUi.LongDate(Model.SendDate)</span></li>
+                </ul>
+            </div>
+        </aside>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (() => {
+            const { showToast } = window.Mailora;
+            const btn = document.getElementById('copyEmail');
+            btn?.addEventListener('click', () => {
+                const email = btn.dataset.email;
+                (navigator.clipboard ? navigator.clipboard.writeText(email) : Promise.reject())
+                    .then(() => showToast(`${email} kopyalandı.`, 'bi-clipboard-check'))
+                    .catch(() => showToast(email, 'bi-envelope'));
+            });
+          
+            document.addEventListener('keydown', e => {
+                if (e.target.closest('input, textarea, [contenteditable="true"]') || e.ctrlKey || e.metaKey) return;
+                if (e.key === 'j') document.getElementById('nextMsg')?.click();
+                if (e.key === 'k') document.getElementById('prevMsg')?.click();
+                if (e.key === 'u' || e.key === 'Escape') location.href = '@backUrl';
+            });
+        })();
+    </script>
+}

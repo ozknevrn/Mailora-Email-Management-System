@@ -1,0 +1,59 @@
+@model MYAcademy_IdentityEmailProject.ViewComponents.MessageLayoutComponents.SidebarViewModel
+@{
+    string Act(string page) => Model.Active == page ? "active" : "";
+    string Badge(int n) => n > 0 ? n.ToString() : "";
+}
+<!-- =====================================================================
+      SHARED SIDEBAR (ViewComponent) — rozetler ve etiketler veritabanından
+      ===================================================================== -->
+<aside class="app-sidebar" id="appSidebar" aria-label="Ana menü">
+    <a class="brand" asp-controller="Dashboard" asp-action="Index">
+        <div class="brand-logo"><i class="bi bi-envelope-paper-heart-fill"></i></div>
+        <div class="brand-name">Mail<span>ora</span></div>
+    </a>
+
+    <a class="btn-compose" asp-controller="Message" asp-action="CreateMessage" data-tip="Yeni Mesaj" style="text-decoration:none">
+        <i class="bi bi-pencil-square"></i> <span class="lbl">Yeni Mesaj</span>
+    </a>
+
+    <div class="nav-section-title">Menü</div>
+    <ul class="side-nav">
+        <li><a class="side-link @Act("dashboard")" asp-controller="Dashboard" asp-action="Index" data-tip="Dashboard"><i class="bi bi-grid-1x2"></i> <span class="lbl">Dashboard</span></a></li>
+        <li><a class="side-link @Act("inbox")" asp-controller="Message" asp-action="Inbox" data-tip="Gelen Kutusu"><i class="bi bi-inbox"></i> <span class="lbl">Gelen Kutusu</span> <span class="side-badge" id="badgeInbox">@Badge(Model.Unread)</span></a></li>
+        <li><a class="side-link @Act("sent")" asp-controller="Message" asp-action="Sendbox" data-tip="Gönderilenler"><i class="bi bi-send"></i> <span class="lbl">Gönderilenler</span></a></li>
+        <li><a class="side-link @Act("drafts")" asp-controller="Message" asp-action="Drafts" data-tip="Taslaklar"><i class="bi bi-file-earmark-text"></i> <span class="lbl">Taslaklar</span> <span class="side-badge muted">@Badge(Model.Drafts)</span></a></li>
+        <li><a class="side-link @Act("starred")" asp-controller="Message" asp-action="Starred" data-tip="Yıldızlı Mesajlar"><i class="bi bi-star"></i> <span class="lbl">Yıldızlı Mesajlar</span> <span class="side-badge muted" id="badgeStarred">@Badge(Model.Starred)</span></a></li>
+        <li><a class="side-link @Act("trash")" asp-controller="Message" asp-action="Trash" data-tip="Çöp Kutusu"><i class="bi bi-trash3"></i> <span class="lbl">Çöp Kutusu</span> <span class="side-badge muted" id="badgeTrash">@Badge(Model.Trash)</span></a></li>
+    </ul>
+
+    <div class="nav-section-title">Hesap</div>
+    <ul class="side-nav">
+        <li><a class="side-link @Act("profile")" asp-controller="Profile" asp-action="Index" data-tip="Profilim"><i class="bi bi-person-circle"></i> <span class="lbl">Profilim</span></a></li>
+        <li>
+            <form method="post" asp-controller="Login" asp-action="Logout" style="margin:0">
+                <button type="submit" class="side-link" data-tip="Çıkış Yap" style="width:100%;border:0;background:transparent;text-align:left"><i class="bi bi-box-arrow-right"></i> <span class="lbl">Çıkış Yap</span></button>
+            </form>
+        </li>
+    </ul>
+
+    <div class="nav-section-title">Kategoriler</div>
+    <ul class="side-labels">
+        @foreach (var c in Model.Categories)
+        {
+            <li><a asp-controller="Message" asp-action="Inbox" asp-route-categoryId="@c.Id" data-tip="@c.Name"><span class="dot" style="background:@c.Color"></span> <span class="lbl">@c.Name</span></a></li>
+        }
+    </ul>
+
+    <div class="storage-card" data-tip="Gönderilen · @Model.Sent mesaj">
+        <div class="top">
+            <div class="ic"><i class="bi bi-send-check"></i></div>
+            <div>
+                <div class="t1">Gönderilen</div>
+                <div class="t2">@Model.Sent mesaj · @Model.Drafts taslak</div>
+            </div>
+        </div>
+        <div class="storage-bar"><span style="width:@(Math.Min(100, Model.Sent * 5))%"></span></div>
+    </div>
+</aside>
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+<!-- /SHARED SIDEBAR -->

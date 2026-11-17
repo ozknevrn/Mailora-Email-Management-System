@@ -1,0 +1,33 @@
+@{
+    ViewData["Title"] = "401 · Giriş Gerekli";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="tr">
+
+@await Component.InvokeAsync("_MessageLayoutStyleComponentPartial")
+
+<body>
+    <style>
+        .err-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--bg); }
+        .err-card { background: #fff; border-radius: 24px; padding: 48px 40px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(48,51,72,.08); }
+        .err-code { font-size: 88px; font-weight: 800; line-height: 1; letter-spacing: -2px; color: #4A7CC2; margin: 18px 0 6px; }
+        .err-icon { width: 76px; height: 76px; border-radius: 22px; display: inline-grid; place-items: center; font-size: 34px; background: #E9F1FC; color: #4A7CC2; }
+        .err-card h1 { font-size: 22px; font-weight: 800; margin: 0 0 10px; }
+        .err-card p { color: var(--muted); font-size: 14.5px; line-height: 1.6; margin: 0 0 26px; }
+        .err-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    </style>
+    <main class="err-wrap">
+        <div class="err-card">
+            <span class="err-icon"><i class="bi bi-person-lock"></i></span>
+            <div class="err-code">401</div>
+            <h1>Giriş Gerekli</h1>
+            <p>Bu sayfayı görüntülemek için oturum açmanız gerekiyor. Lütfen giriş yapın ve tekrar deneyin.</p>
+            <div class="err-actions">
+                <a class="btn-send" href="/Login/SignIn" style="text-decoration:none"><span class="lbl"><i class="bi bi-box-arrow-in-right"></i> Giriş Yap</span></a>
+                <button type="button" class="btn-soft" onclick="history.back()"><i class="bi bi-arrow-left"></i> Geri Dön</button>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

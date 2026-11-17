@@ -1,0 +1,256 @@
+@model MessageListViewModel
+@using MYAcademy_IdentityEmailProject.Helpers
+@{
+    ViewData["Title"] = Model.Title;
+    Layout = "~/Views/MessageLayout/Index.cshtml";
+
+    var action = Model.Box switch { "sent" => "Sendbox", "starred" => "Starred", "drafts" => "Drafts", "trash" => "Trash", _ => "Inbox" };
+    var currentUrl = Context.Request.Path + Context.Request.QueryString;
+
+    
+    string Link(string? q = null, int? categoryId = -1, string? filter = null, string? sort = null, int? page = null, bool clearCategory = false) =>
+        Url.Action(action, "Message", new
+        {
+            q = q ?? Model.Query,
+            categoryId = clearCategory ? null : (categoryId == -1 ? Model.CategoryId : categoryId),
+            filter = (filter ?? Model.Filter) == "all" ? null : (filter ?? Model.Filter),
+            sort = (sort ?? Model.Sort) == "desc" ? null : (sort ?? Model.Sort),
+            page = page is null or 1 ? (int?)null : page
+        })!;
+
+    var activeCategory = Model.Categories.FirstOrDefault(c => c.Id == Model.CategoryId);
+    var from = Model.TotalCount == 0 ? 0 : (Model.Page - 1) * Model.PageSize + 1;
+    var to = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+    var showUnreadChip = Model.Box is "inbox" or "starred";
+    var showStarChip = Model.Box is "inbox" or "sent";
+    var hasFilter = !string.IsNullOrEmpty(Model.Query) || Model.CategoryId.HasValue || Model.Filter != "all";
+}
+
+<style>
+    a.chip, .pager a { text-decoration: none; }
+    .pager a { min-width: 30px; height: 30px; border-radius: 9px; color: #5D6075; font-weight: 600; font-size: 12.5px; display: grid; place-items: center; padding: 0 6px; transition: background .2s; }
+    .pager a:hover { background: var(--lavender); color: var(--accent-dark); }
+    .pager a.active { background: var(--accent); color: #fff; }
+    .pager span.disabled { min-width: 30px; height: 30px; display: grid; place-items: center; opacity: .35; }
+    .chip .cdot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .list-sort { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #5D6075; text-decoration: none; padding: 6px 10px; border-radius: 10px; }
+    .list-sort:hover { background: var(--lavender); color: var(--accent-dark); }
+    .draft-pill { font-size: 11px; font-weight: 700; color: #C2476B; background: #FBE7EE; padding: 2px 8px; border-radius: 20px; }
+    .bulk-bar .tool-btn.danger:hover { background: #FBE7EE; color: #C2476B; }
+    .empty-trash { font-size: 12.5px; font-weight: 600; color: #C2476B; background: #FBE7EE; border: 0; border-radius: 10px; padding: 6px 12px; }
+</style>
+
+<section class="inbox" id="inbox">
+    <div class="panel list-panel">
+
+      
+        <div class="list-head">
+            <div class="list-title">
+                <div>
+                    <h1><i class="bi @Model.Icon" style="font-size:.8em;color:var(--accent)"></i> @Model.Title</h1>
+                    <div class="sub">@Model.BoxTotal mesaj · @Model.UserEmail</div>
+                </div>
+                @if (Model.Box == "inbox")
+                {
+                    <span class="count-pill">@Model.UnreadCount okunmamış</span>
+                }
+                else if (Model.Box == "trash" && Model.BoxTotal > 0)
+                {
+                    <form method="post" asp-action="EmptyTrash" onsubmit="return confirm('Çöp kutusundaki tüm mesajlar kalıcı olarak silinecek. Emin misiniz?');">
+                        <button type="submit" class="empty-trash"><i class="bi bi-trash3"></i> Çöp kutusunu boşalt</button>
+                    </form>
+                }
+            </div>
+
+            <div class="list-tools">
+                <form class="list-search @(string.IsNullOrEmpty(Model.Query) ? "" : "has-value")" id="listSearchWrap" method="get" asp-action="@action">
+                    <i class="bi bi-search"></i>
+                    <input type="text" name="q" id="listSearch" value="@Model.Query" placeholder="Gönderen, konu veya içerik ara" autocomplete="off">
+                    @if (Model.CategoryId.HasValue) { <input type="hidden" name="categoryId" value="@Model.CategoryId"> }
+                    @if (Model.Filter != "all") { <input type="hidden" name="filter" value="@Model.Filter"> }
+                    @if (Model.Sort == "asc") { <input type="hidden" name="sort" value="asc"> }
+                    <a class="clear" href="@Link(q: "")" aria-label="Aramayı temizle"><i class="bi bi-x-circle-fill"></i></a>
+                </form>
+
+                <div class="filter-chips">
+                    <a class="chip @(Model.Filter == "all" && !Model.CategoryId.HasValue ? "active" : "")" href="@Link(filter: "all", clearCategory: true)">Tümü <span class="n">@Model.BoxTotal</span></a>
+                    @if (showUnreadChip)
+                    {
+                        <a class="chip @(Model.Filter == "unread" ? "active" : "")" href="@Link(filter: "unread")">Okunmamış <span class="n">@Model.UnreadCount</span></a>
+                    }
+                    @if (showStarChip)
+                    {
+                        <a class="chip @(Model.Filter == "starred" ? "active" : "")" href="@Link(filter: "starred")">Yıldızlı <span class="n">@Model.StarredCount</span></a>
+                    }
+                    @foreach (var c in Model.Categories)
+                    {
+                        <a class="chip @(Model.CategoryId == c.Id ? "active" : "")" href="@(Model.CategoryId == c.Id ? Link(clearCategory: true) : Link(categoryId: c.Id))" title="@c.Name kategorisi">
+                            <span class="cdot" style="background:@(c.Color ?? "#8B7FD6")"></span>@c.Name <span class="n">@c.Count</span>
+                        </a>
+                    }
+                    <a class="list-sort" href="@Link(sort: Model.Sort == "desc" ? "asc" : "desc")" title="Tarihe göre sırala">
+                        <i class="bi @(Model.Sort == "desc" ? "bi-sort-down" : "bi-sort-up")"></i> @(Model.Sort == "desc" ? "En yeni" : "En eski")
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        
+        <form method="post" asp-action="Bulk" id="bulkForm">
+            <input type="hidden" name="returnUrl" value="@currentUrl">
+            <div class="bulk-bar">
+                <input type="checkbox" class="m-check" id="checkAll" aria-label="Tümünü seç">
+                <span class="sel-info" id="selInfo">Tümünü seç</span>
+                <span class="spacer"></span>
+                @switch (Model.Box)
+                {
+                    case "inbox":
+                        <button type="submit" name="op" value="read" class="tool-btn" title="Okundu olarak işaretle" disabled data-bulk><i class="bi bi-envelope-open"></i></button>
+                        <button type="submit" name="op" value="unread" class="tool-btn" title="Okunmadı olarak işaretle" disabled data-bulk><i class="bi bi-envelope"></i></button>
+                        <button type="submit" name="op" value="star" class="tool-btn" title="Yıldızla" disabled data-bulk><i class="bi bi-star"></i></button>
+                        <button type="submit" name="op" value="trash" class="tool-btn danger" title="Çöp kutusuna taşı" disabled data-bulk><i class="bi bi-trash3"></i></button>
+                        break;
+                    case "sent":
+                        <button type="submit" name="op" value="star" class="tool-btn" title="Yıldızla" disabled data-bulk><i class="bi bi-star"></i></button>
+                        <button type="submit" name="op" value="trash" class="tool-btn danger" title="Çöp kutusuna taşı" disabled data-bulk><i class="bi bi-trash3"></i></button>
+                        break;
+                    case "starred":
+                        <button type="submit" name="op" value="unstar" class="tool-btn" title="Yıldızı kaldır" disabled data-bulk><i class="bi bi-star-half"></i></button>
+                        <button type="submit" name="op" value="trash" class="tool-btn danger" title="Çöp kutusuna taşı" disabled data-bulk><i class="bi bi-trash3"></i></button>
+                        break;
+                    case "drafts":
+                        <button type="submit" name="op" value="delete" class="tool-btn danger" title="Taslağı sil" disabled data-bulk data-confirm="Seçili taslaklar silinecek. Emin misiniz?"><i class="bi bi-trash3"></i></button>
+                        break;
+                    case "trash":
+                        <button type="submit" name="op" value="restore" class="tool-btn" title="Geri al" disabled data-bulk><i class="bi bi-arrow-counterclockwise"></i></button>
+                        <button type="submit" name="op" value="delete" class="tool-btn danger" title="Kalıcı olarak sil" disabled data-bulk data-confirm="Seçili mesajlar KALICI olarak silinecek. Bu işlem geri alınamaz."><i class="bi bi-x-octagon"></i></button>
+                        break;
+                }
+                <a class="tool-btn" href="@currentUrl" title="Yenile"><i class="bi bi-arrow-clockwise"></i></a>
+            </div>
+
+            
+            <div class="msg-list" id="msgList">
+                @foreach (var m in Model.Items)
+                {
+                    var side = m.IsIncoming ? "in" : "out";
+                    var href = m.IsDraft
+                        ? Url.Action("CreateMessage", "Message", new { draftId = m.Id })
+                        : Url.Action("MessageDetail", "Message", new { id = m.Id, box = Model.Box });
+
+                    <article class="msg-item @(m.IsRead ? "" : "unread")" data-href="@href" data-id="@m.Id" data-side="@side" tabindex="0" title="Mesajı aç">
+                        <div class="lead">
+                            <input type="checkbox" class="m-check row-check" name="ids" value="@m.Id:@side" aria-label="Seç">
+                            @if (!m.IsDraft && Model.Box != "trash")
+                            {
+                                <button class="star-btn @(m.IsStarred ? "on" : "")" type="button" aria-label="Yıldızla" title="@(m.IsStarred ? "Yıldızı kaldır" : "Yıldızla")">
+                                    <i class="bi @(m.IsStarred ? "bi-star-fill" : "bi-star")"></i>
+                                </button>
+                            }
+                        </div>
+                        <span class="avatar @MailoraUi.AvatarColor(m.PersonEmail)">@MailoraUi.Initials(string.IsNullOrEmpty(m.PersonName) ? m.PersonEmail : m.PersonName)</span>
+                        <div class="mi-sender">
+                            <span class="sender" title="@m.PersonEmail">@(m.IsIncoming ? "" : "Kime: ")@m.PersonName</span>
+                            @if (!m.IsRead) { <span class="unread-dot"></span> }
+                        </div>
+                        <div class="mi-main">
+                            @if (m.IsDraft) { <span class="draft-pill">Taslak</span> }
+                            <span class="subject">@m.Subject</span>
+                            <span class="snippet">@m.Snippet</span>
+                        </div>
+                        <div class="mi-meta">
+                            <span class="tag" style="background:@((m.CategoryColor ?? "#8B7FD6") + "22");color:@(m.CategoryColor ?? "#6F62C6")">@m.CategoryName</span>
+                        </div>
+                        <span class="time" title="@MailoraUi.LongDate(m.Date)">@MailoraUi.ShortTime(m.Date)</span>
+                    </article>
+                }
+
+                @if (!Model.Items.Any())
+                {
+                    <div class="empty-list">
+                        <div class="ic"><i class="bi @(hasFilter ? "bi-search-heart" : Model.Icon)"></i></div>
+                        <h6>@(hasFilter ? "Sonuç bulunamadı" : Model.Title + " boş")</h6>
+                        <div>@(hasFilter ? "Arama veya filtre kriterlerini değiştirmeyi deneyin." : Model.EmptyText)</div>
+                    </div>
+                }
+            </div>
+        </form>
+
+        
+        <div class="list-foot">
+            <span class="range">@from–@to / @Model.TotalCount mesaj</span>
+            <div class="pager">
+                @if (Model.Page > 1) { <a href="@Link(page: Model.Page - 1)" aria-label="Önceki"><i class="bi bi-chevron-left"></i></a> }
+                else { <span class="disabled"><i class="bi bi-chevron-left"></i></span> }
+
+                @for (var p = 1; p <= Model.TotalPages; p++)
+                {
+                    <a href="@Link(page: p)" class="@(p == Model.Page ? "active" : "")">@p</a>
+                }
+
+                @if (Model.Page < Model.TotalPages) { <a href="@Link(page: Model.Page + 1)" aria-label="Sonraki"><i class="bi bi-chevron-right"></i></a> }
+                else { <span class="disabled"><i class="bi bi-chevron-right"></i></span> }
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (() => {
+            const { $, $$, showToast, postForm } = window.Mailora;
+            const list = $('#msgList');
+            const rowChecks = () => $$('.row-check', list);
+
+         
+            window.Mailora.searchUrl = '@Url.Action(action, "Message")';
+
+           
+            function updateBulk() {
+                const all = rowChecks(), n = all.filter(c => c.checked).length;
+                const head = $('#checkAll');
+                head.checked = all.length > 0 && n === all.length;
+                head.indeterminate = n > 0 && n < all.length;
+                $('#selInfo').textContent = n ? `${n} mesaj seçildi` : 'Tümünü seç';
+                $$('[data-bulk]').forEach(b => b.disabled = !n);
+                all.forEach(c => c.closest('.msg-item').classList.toggle('checked', c.checked));
+            }
+            $('#checkAll').addEventListener('change', e => { rowChecks().forEach(c => c.checked = e.target.checked); updateBulk(); });
+            list.addEventListener('change', e => { if (e.target.classList.contains('row-check')) updateBulk(); });
+
+           
+            $('#bulkForm').addEventListener('submit', e => {
+                const btn = e.submitter;
+                if (btn && btn.dataset.confirm && !confirm(btn.dataset.confirm)) e.preventDefault();
+            });
+
+         
+            list.addEventListener('click', e => {
+                const row = e.target.closest('.msg-item');
+                if (!row) return;
+                if (e.target.closest('.row-check')) return;
+
+                const star = e.target.closest('.star-btn');
+                if (star) {
+                    e.stopPropagation();
+                    postForm('@Url.Action("ToggleStar", "Message")', { id: row.dataset.id, side: row.dataset.side })
+                        .then(res => {
+                            star.classList.toggle('on', res.starred);
+                            star.querySelector('i').className = 'bi ' + (res.starred ? 'bi-star-fill' : 'bi-star');
+                            star.classList.remove('pop'); void star.offsetWidth; star.classList.add('pop');
+                            showToast(res.starred ? 'Mesaj yıldızlandı.' : 'Yıldız kaldırıldı.', res.starred ? 'bi-star-fill' : 'bi-star');
+                        })
+                        .catch(() => showToast('İşlem kaydedilemedi.', 'bi-exclamation-circle'));
+                    return;
+                }
+                location.href = row.dataset.href;
+            });
+            list.addEventListener('keydown', e => {
+                const row = e.target.closest('.msg-item');
+                if (row && e.key === 'Enter' && !e.target.closest('input, button')) location.href = row.dataset.href;
+            });
+
+            updateBulk();
+        })();
+    </script>
+}

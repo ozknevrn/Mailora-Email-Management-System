@@ -1,0 +1,85 @@
+@*
+    Giriş, e-posta doğrulama ve şifre sıfırlama sayfalarının ortak düzeni.
+    Kayıt sayfasındaki (SignUp) tasarım bileşenleri burada da kullanılır:
+    _RegisterStyleComponentPartial (CSS) + _RegisterBrandComponentPartial (sol mor panel)
+*@
+<!DOCTYPE html>
+<html lang="tr">
+
+@await Component.InvokeAsync("_RegisterStyleComponentPartial")
+
+<body>
+    <style>
+        /* Sunucudan gelen mesajlar (TempData / ModelState) */
+        .auth-alert { display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:12px; font-size:13.5px; line-height:1.5; margin-bottom:16px; }
+        .auth-alert i { font-size:16px; margin-top:1px; }
+        .auth-alert.error   { background:#FBE7EE; color:#A3304F; }
+        .auth-alert.success { background:#E3F5EE; color:#2F7D60; }
+        .auth-alert.warning { background:#FDF3E1; color:#9A6A12; }
+        .auth-alert.info    { background:#E9F1FC; color:#3A67A8; }
+        .validation-summary-valid { display:none; }
+        .validation-summary-errors { background:#FBE7EE; color:#A3304F; padding:12px 14px 12px 34px; border-radius:12px; font-size:13.5px; margin-bottom:16px; }
+        .validation-summary-errors ul { margin:0; padding:0; }
+        .field-error { display:block; color:var(--danger); font-size:12.5px; margin-top:6px; }
+        .field-error:empty { display:none; }
+        .auth-stack { display:flex; flex-direction:column; gap:16px; }
+        .auth-row { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:13.5px; flex-wrap:wrap; }
+        .auth-row a, .text-link { color:var(--accent); font-weight:600; text-decoration:none; }
+        .auth-row a:hover, .text-link:hover { text-decoration:underline; }
+        .remember { display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text); }
+        .btn-ghost-x { width:100%; margin-top:10px; padding:12px; border-radius:12px; border:1.5px solid var(--border); background:#fff; color:var(--text); font-weight:600; font-size:14px; cursor:pointer; display:flex; justify-content:center; align-items:center; gap:8px; }
+        .btn-ghost-x:hover { border-color:var(--accent); color:var(--accent); }
+        .btn-ghost-x:disabled { opacity:.6; cursor:not-allowed; }
+        .code-inputs { display:flex; gap:10px; justify-content:space-between; }
+        .code-inputs input { width:100%; max-width:56px; height:60px; text-align:center; font-size:24px; font-weight:800; border:1.5px solid var(--border); border-radius:12px; color:var(--text); background:#fff; outline:none; transition:border-color .2s, box-shadow .2s; }
+        .code-inputs input:focus { border-color:var(--accent); box-shadow:0 0 0 4px rgba(139,127,214,.15); }
+        .code-inputs.has-error input { border-color:var(--danger); }
+        .auth-icon { width:64px; height:64px; border-radius:18px; display:grid; place-items:center; font-size:28px; margin-bottom:18px; background:#F1F0FB; color:#6F62C6; }
+        .auth-icon.warn { background:#FDF3E1; color:#B88A12; }
+        .mail-chip { display:inline-flex; align-items:center; gap:6px; background:#F1F0FB; color:#5A4FB0; font-weight:700; padding:4px 10px; border-radius:999px; font-size:13px; word-break:break-all; }
+    </style>
+
+    <div class="auth-bg" aria-hidden="true"><span class="g1"></span><span class="g2"></span><span class="g3"></span></div>
+
+    <main class="auth-page">
+        <div class="auth-card">
+            @await Component.InvokeAsync("_RegisterBrandComponentPartial")
+
+            <section class="auth-form-wrap">
+                <div>
+                    @if (TempData["Success"] is string ok)
+                    {
+                        <div class="auth-alert success"><i class="bi bi-check-circle-fill"></i><span>@ok</span></div>
+                    }
+                    @if (TempData["Warning"] is string warn)
+                    {
+                        <div class="auth-alert warning"><i class="bi bi-exclamation-triangle-fill"></i><span>@warn</span></div>
+                    }
+                    @if (TempData["Error"] is string err)
+                    {
+                        <div class="auth-alert error"><i class="bi bi-x-circle-fill"></i><span>@err</span></div>
+                    }
+
+                    @RenderBody()
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // Şifre göster / gizle (data-eye="inputId")
+        document.querySelectorAll('[data-eye]').forEach(btn => btn.addEventListener('click', () => {
+            const input = document.getElementById(btn.dataset.eye);
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            btn.querySelector('i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+        }));
+        // Gönderilen formda butonu kilitle (çift tıklamayı engeller)
+        document.querySelectorAll('form[data-lock]').forEach(f => f.addEventListener('submit', () => {
+            const b = f.querySelector('button[type="submit"]');
+            if (b) { b.disabled = true; b.style.opacity = '.75'; }
+        }));
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

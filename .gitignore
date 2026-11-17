@@ -1,0 +1,12 @@
+## Visual Studio / .NET
+.vs/
+bin/
+obj/
+*.user
+*.suo
+
+## Gizli ayarlar (Gmail adresi + uygulama şifresi) — ASLA GitHub'a gönderilmez
+appsettings.Secrets.json
+
+## Kullanıcıların yüklediği profil fotoğrafları
+**/wwwroot/uploads/

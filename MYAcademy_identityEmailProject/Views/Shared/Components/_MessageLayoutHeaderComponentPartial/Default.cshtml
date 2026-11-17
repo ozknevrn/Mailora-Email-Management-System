@@ -1,0 +1,74 @@
+@model MYAcademy_IdentityEmailProject.ViewComponents.MessageLayoutComponents.HeaderViewModel
+@using MYAcademy_IdentityEmailProject.Helpers
+<!-- =====================================================================
+        SHARED NAVBAR (ViewComponent) — oturum açan kullanıcının bilgileri
+        ===================================================================== -->
+<header class="app-navbar">
+    <button class="nav-toggle" id="sidebarToggle" type="button" aria-label="Menüyü daralt / genişlet" title="Menüyü daralt"><i class="bi bi-list"></i></button>
+
+    <form class="global-search" method="get" asp-controller="Message" asp-action="Inbox" id="globalSearchForm">
+        <i class="bi bi-search"></i>
+        <input type="search" id="globalSearch" name="q" placeholder="Mesajlarda, kişilerde ara…" autocomplete="off">
+        <span class="kbd">Ctrl K</span>
+    </form>
+
+    <div class="nav-actions">
+        <div class="dropdown">
+            <button class="icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Bildirimler">
+                <i class="bi bi-bell"></i>@if (Model.UnreadCount > 0) {<span class="pip"></span>}
+            </button>
+            <div class="dropdown-menu dropdown-menu-end notif-menu">
+                <div class="d-flex justify-content-between align-items-center px-2 pt-1 pb-2">
+                    <strong style="font-size:14px">Bildirimler</strong>
+                    <span class="tag tag-is">@Model.UnreadCount yeni</span>
+                </div>
+                @foreach (var n in Model.Notifications)
+                {
+                    <a class="notif-item" asp-controller="Message" asp-action="MessageDetail" asp-route-id="@n.MessageId" asp-route-box="inbox" style="text-decoration:none;color:inherit">
+                        <div class="ni @MailoraUi.AvatarColor(n.SenderEmail)"><i class="bi bi-envelope"></i></div>
+                        <div><div class="nt"><b>@n.SenderName</b> · @n.Subject</div><div class="nd">@MailoraUi.ShortTime(n.Date)</div></div>
+                    </a>
+                }
+                @if (!Model.Notifications.Any())
+                {
+                    <div class="notif-item"><div class="ni av-mint"><i class="bi bi-check2-all"></i></div><div><div class="nt">Okunmamış mesajınız yok</div><div class="nd">Her şey yolunda 🎉</div></div></div>
+                }
+            </div>
+        </div>
+
+        <div class="dropdown">
+            <button class="user-chip" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="avatar sm av-user">
+                    @if (!string.IsNullOrEmpty(Model.ImageUrl)) { <img src="@Model.ImageUrl" alt="@Model.FullName"> } else { @MailoraUi.Initials(Model.FullName) }
+                </span>
+                <span class="meta">
+                    <span class="name d-block">@Model.FullName</span>
+                    <span class="role d-block">@@@Model.UserName</span>
+                </span>
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li class="dd-head">
+                    <span class="avatar av-user">
+                        @if (!string.IsNullOrEmpty(Model.ImageUrl)) { <img src="@Model.ImageUrl" alt="@Model.FullName"> } else { @MailoraUi.Initials(Model.FullName) }
+                    </span>
+                    <div style="min-width:0">
+                        <div style="font-weight:700">@Model.FullName</div>
+                        <div style="font-size:12.5px;color:var(--muted)">@Model.Email</div>
+                    </div>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" asp-controller="Dashboard" asp-action="Index"><i class="bi bi-grid-1x2"></i> Dashboard</a></li>
+                <li><a class="dropdown-item" asp-controller="Profile" asp-action="Index"><i class="bi bi-person"></i> Profilim</a></li>
+                <li><a class="dropdown-item" asp-controller="Message" asp-action="Starred"><i class="bi bi-star"></i> Yıldızlı Mesajlar</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <form method="post" asp-controller="Login" asp-action="Logout" style="margin:0">
+                        <button type="submit" class="dropdown-item danger"><i class="bi bi-box-arrow-right"></i> Çıkış Yap</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</header>
+<!-- /SHARED NAVBAR -->

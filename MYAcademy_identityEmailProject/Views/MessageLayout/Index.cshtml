@@ -1,0 +1,126 @@
+@{
+    Layout = null;
+    var toast = TempData["Toast"] as string;
+    var toastWarning = TempData["ToastWarning"] as string;
+}
+<!DOCTYPE html>
+<html lang="tr">
+
+@await Component.InvokeAsync("_MessageLayoutStyleComponentPartial")
+
+<body>
+
+    @await Component.InvokeAsync("_MessageLayoutSidebarComponentPartial", new { active = ViewData["ActiveMenu"] as string })
+
+    @await Component.InvokeAsync("_MessageLayoutHeaderComponentPartial")
+
+  
+    <main class="app-main page-enter" id="mainContent">
+        @RenderBody()
+    </main>
+    <!-- /DYNAMIC MAIN CONTENT -->
+
+    <div class="toast-stack" id="toastStack"></div>
+
+    @* AJAX istekleri (ör. yıldızlama) bu token'ı kullanır *@
+    @Html.AntiForgeryToken()
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <script>
+
+        (() => {
+            const $ = (sel, root = document) => root.querySelector(sel);
+            const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+            const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+            const SIDEBAR_KEY = 'mailora.sidebarCollapsed';
+            const readJSON  = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+            const writeJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } };
+
+            
+            function showToast(text, icon = 'bi-check2-circle', action) {
+                const stack = $('#toastStack');
+                if (!stack) return;
+                const el = document.createElement('div');
+                el.className = 'm-toast';
+                el.innerHTML = `<i class="bi ${icon} lead-ic"></i><span>${escapeHtml(text)}</span>`;
+                const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 250); };
+                if (action) {
+                    const b = document.createElement('button');
+                    b.textContent = action.label;
+                    b.onclick = () => { action.onClick(); close(); };
+                    el.appendChild(b);
+                }
+                stack.appendChild(el);
+                setTimeout(close, action ? 5000 : 3200);
+            }
+
+           
+            function setBadge(id, value) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value ? value : '';
+            }
+
+          
+            function postForm(url, data) {
+                const body = new URLSearchParams();
+                Object.entries(data).forEach(([k, v]) => [].concat(v).forEach(x => body.append(k, x)));
+                const token = $('input[name="__RequestVerificationToken"]');
+                if (token) body.append('__RequestVerificationToken', token.value);
+                return fetch(url, { method: 'POST', body, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+            }
+
+            
+            window.Mailora = { $, $$, escapeHtml, showToast, setBadge, postForm, searchUrl: null };
+
+           
+            function openSidebar()  { document.body.classList.add('sidebar-open'); }
+            function closeSidebar() { document.body.classList.remove('sidebar-open'); }
+
+            function setSidebarCollapsed(on, persist = true) {
+                document.body.classList.toggle('sidebar-collapsed', on);
+                const t = $('#sidebarToggle');
+                if (t) {
+                    t.title = on ? 'Menüyü genişlet' : 'Menüyü daralt';
+                    t.setAttribute('aria-expanded', String(!on));
+                }
+                if (persist) writeJSON(SIDEBAR_KEY, on);
+            }
+
+            $('#sidebarToggle')?.addEventListener('click', () => {
+                if (window.innerWidth >= 992) setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+                else openSidebar();
+            });
+            $('#sidebarBackdrop')?.addEventListener('click', closeSidebar);
+            window.addEventListener('resize', () => { if (window.innerWidth >= 992) closeSidebar(); });
+
+            
+            $('#globalSearchForm')?.addEventListener('submit', e => {
+                if (window.Mailora.searchUrl) e.currentTarget.action = window.Mailora.searchUrl;
+            });
+            const q = new URLSearchParams(location.search).get('q');
+            if (q && $('#globalSearch')) $('#globalSearch').value = q;
+
+            document.addEventListener('keydown', e => {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#globalSearch')?.focus(); }
+                if (e.key === 'Escape') closeSidebar();
+            });
+
+            
+            document.body.classList.add('preload');
+            setSidebarCollapsed(readJSON(SIDEBAR_KEY) === true, false);
+            requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('preload')));
+
+           
+            const toast = @Json.Serialize(toast);
+            const toastWarning = @Json.Serialize(toastWarning);
+            if (toast) showToast(toast, 'bi-check2-circle');
+            if (toastWarning) showToast(toastWarning, 'bi-exclamation-triangle');
+        })();
+    </script>
+
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

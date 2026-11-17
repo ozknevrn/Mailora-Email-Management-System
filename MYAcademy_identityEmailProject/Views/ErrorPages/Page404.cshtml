@@ -1,0 +1,33 @@
+@{
+    ViewData["Title"] = "404 · Sayfa Bulunamadı";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="tr">
+
+@await Component.InvokeAsync("_MessageLayoutStyleComponentPartial")
+
+<body>
+    <style>
+        .err-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--bg); }
+        .err-card { background: #fff; border-radius: 24px; padding: 48px 40px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(48,51,72,.08); }
+        .err-code { font-size: 88px; font-weight: 800; line-height: 1; letter-spacing: -2px; color: #8B7FD6; margin: 18px 0 6px; }
+        .err-icon { width: 76px; height: 76px; border-radius: 22px; display: inline-grid; place-items: center; font-size: 34px; background: #F1F0FB; color: #8B7FD6; }
+        .err-card h1 { font-size: 22px; font-weight: 800; margin: 0 0 10px; }
+        .err-card p { color: var(--muted); font-size: 14.5px; line-height: 1.6; margin: 0 0 26px; }
+        .err-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    </style>
+    <main class="err-wrap">
+        <div class="err-card">
+            <span class="err-icon"><i class="bi bi-compass"></i></span>
+            <div class="err-code">404</div>
+            <h1>Sayfa Bulunamadı</h1>
+            <p>Aradığınız sayfa ya da mesaj bulunamadı. Silinmiş, taşınmış veya hiç var olmamış olabilir.</p>
+            <div class="err-actions">
+                <a class="btn-send" href="/" style="text-decoration:none"><span class="lbl"><i class="bi bi-house"></i> Ana Sayfaya Dön</span></a>
+                <button type="button" class="btn-soft" onclick="history.back()"><i class="bi bi-arrow-left"></i> Geri Dön</button>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,276 @@
+@model DashboardViewModel
+@using MYAcademy_IdentityEmailProject.Helpers
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "~/Views/MessageLayout/Index.cshtml";
+
+    var today = DateTime.Now.ToString("d MMMM yyyy, dddd", MailoraUi.Tr);
+    var hour = DateTime.Now.Hour;
+    var greeting = hour < 6 ? "İyi geceler" : hour < 12 ? "Günaydın" : hour < 18 ? "İyi günler" : "İyi akşamlar";
+    var distTotal = Model.CategoryDistribution.Sum(c => c.Count);
+    var maxContact = Math.Max(1, Model.TopContacts.Select(c => c.Total).DefaultIfEmpty(0).Max());
+    var unreadPct = Model.InboxCount == 0 ? 0 : (int)Math.Round(Model.UnreadCount * 100.0 / Model.InboxCount);
+    string Inbox(string? filter = null) => Url.Action("Inbox", "Message", new { filter })!;
+}
+
+<style>
+    .db-stat, .db-tile, .db-msg, .db-link { text-decoration: none; color: inherit; }
+</style>
+
+<section class="dashboard" id="dashboard">
+
+    
+    <div class="db-welcome">
+        <div class="db-welcome-text">
+            <span class="db-date"><i class="bi bi-calendar3"></i> @today</span>
+            <h1>@greeting, <span>@Model.FirstName</span>! <span class="wave">👋</span></h1>
+            <p>E-posta hesabında bugün neler olduğunu birlikte inceleyelim.</p>
+            <div class="db-welcome-row">
+                <a class="btn-send" asp-controller="Message" asp-action="CreateMessage" style="text-decoration:none"><span class="lbl"><i class="bi bi-pencil-square"></i> Yeni Mesaj Oluştur</span></a>
+                <span class="db-chip"><i class="bi bi-envelope-arrow-down"></i> Bugün <b>@Model.TodayReceived</b> yeni mesaj</span>
+                @if (Model.UnreadCount > 0)
+                {
+                    <a class="db-chip warn" href="@Inbox("unread")" style="text-decoration:none"><i class="bi bi-exclamation-circle"></i> <b>@Model.UnreadCount</b> okunmamış mesaj bekliyor</a>
+                }
+                else
+                {
+                    <span class="db-chip ok"><i class="bi bi-check2-circle"></i> Tüm mesajlar okundu</span>
+                }
+            </div>
+        </div>
+        <div class="db-illus" aria-hidden="true">
+            <span class="plane"><i class="bi bi-send-fill"></i></span>
+            <span class="bubble b1"></span><span class="bubble b2"></span><span class="bubble b3"></span>
+            <div class="env">
+                <div class="letter"><i></i><i></i><i></i></div>
+                <div class="env-front"></div>
+                @if (Model.UnreadCount > 0) { <span class="env-badge">@Model.UnreadCount</span> }
+            </div>
+        </div>
+    </div>
+
+    
+    <div class="db-stats">
+        <a class="db-stat t-blue" href="@Inbox()">
+            <div class="top"><span class="ic"><i class="bi bi-inbox-fill"></i></span><span class="trend">Bugün +@Model.TodayReceived</span></div>
+            <div class="num">@Model.InboxCount</div>
+            <div class="lbl">Gelen Mesajlar</div>
+            <div class="desc"><span>Gelen kutunuzdaki tüm mesajlar</span><i class="bi bi-arrow-right"></i></div>
+        </a>
+        <a class="db-stat t-lav" asp-controller="Message" asp-action="Sendbox">
+            <div class="top"><span class="ic"><i class="bi bi-send-fill"></i></span><span class="trend">7 gün: @Model.WeekSent</span></div>
+            <div class="num">@Model.SentCount</div>
+            <div class="lbl">Gönderilen Mesajlar</div>
+            <div class="desc"><span>Bu hafta @Model.WeekSent mesaj</span><i class="bi bi-arrow-right"></i></div>
+        </a>
+        <a class="db-stat t-mint" href="@Inbox("unread")">
+            <div class="top"><span class="ic"><i class="bi bi-envelope-fill"></i></span><span class="trend">Kutunun %@unreadPct'i</span></div>
+            <div class="num">@Model.UnreadCount</div>
+            <div class="lbl">Okunmamış Mesajlar</div>
+            <div class="desc"><span>Gelen kutunuzda bekliyor</span><i class="bi bi-arrow-right"></i></div>
+        </a>
+        <a class="db-stat t-peach" asp-controller="Message" asp-action="Starred">
+            <div class="top"><span class="ic"><i class="bi bi-star-fill"></i></span><span class="trend">Önemli</span></div>
+            <div class="num">@Model.StarredCount</div>
+            <div class="lbl">Yıldızlı Mesajlar</div>
+            <div class="desc"><span>@Model.DraftCount taslak · @Model.TrashCount çöpte</span><i class="bi bi-arrow-right"></i></div>
+        </a>
+    </div>
+
+   
+    <div class="db-row charts">
+        <div class="db-card db-traffic">
+            <div class="db-card-head">
+                <div>
+                    <h3>Mesaj Trafiği</h3>
+                    <p>Son 14 günde gelen ve gönderilen mesajların dağılımı.</p>
+                </div>
+            </div>
+            <div class="db-legend">
+                <button type="button" class="db-legend-item" data-ds="0"><span class="sw" style="background:#8B7FD6"></span>Gelen Mesajlar <b>@Model.TrafficIncoming.Sum()</b></button>
+                <button type="button" class="db-legend-item" data-ds="1"><span class="sw" style="background:#6FA8E8"></span>Gönderilen Mesajlar <b>@Model.TrafficSent.Sum()</b></button>
+            </div>
+            <div class="db-chart-box"><canvas id="dbTraffic" aria-label="Mesaj trafiği grafiği" role="img"></canvas></div>
+        </div>
+
+        <div class="db-card db-dist">
+            <div class="db-card-head">
+                <div><h3>Kategorilere Göre Dağılım</h3><p>Gelen ve gönderilen mesajlarınızın kategorileri</p></div>
+            </div>
+            @if (distTotal == 0)
+            {
+                <div class="empty-list"><h6>Henüz mesaj yok</h6><div>Mesajlaştıkça burada kategori dağılımı görünecek.</div></div>
+            }
+            else
+            {
+                <div class="db-dist-body">
+                    <div class="db-donut-box">
+                        <canvas id="dbDonut" aria-label="Kategori dağılımı grafiği" role="img"></canvas>
+                        <div class="db-donut-center"><div><b>@distTotal</b><span>Toplam mesaj</span></div></div>
+                    </div>
+                    <ul class="db-dist-list">
+                        @foreach (var c in Model.CategoryDistribution)
+                        {
+                            <li>
+                                <span class="db-dot" style="background:@c.Color"></span>@c.Name
+                                <span class="c">@c.Count</span><span class="p">%@(Math.Round(c.Count * 100.0 / distTotal))</span>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+            <div class="db-starred-note">
+                <i class="bi bi-star-fill"></i>
+                <span><b>@Model.StarredCount</b> yıldızlı mesaj · <b>@Model.DraftCount</b> taslak</span>
+                <a class="link-btn" asp-controller="Message" asp-action="Starred">Görüntüle</a>
+            </div>
+        </div>
+    </div>
+
+    
+    <div class="db-row bottom">
+
+        <div class="db-card db-recent">
+            <div class="db-card-head">
+                <div><h3>Son Gelen Mesajlar</h3><p>Gelen kutunuzdaki en yeni 5 mesaj</p></div>
+                <a class="db-link" href="@Inbox()">Tümünü Gör <i class="bi bi-arrow-right"></i></a>
+            </div>
+            <div class="db-msgs">
+                @foreach (var m in Model.RecentMessages)
+                {
+                    <a class="db-msg @(m.IsRead ? "" : "unread")" asp-controller="Message" asp-action="MessageDetail" asp-route-id="@m.Id" asp-route-box="inbox">
+                        <span class="avatar @MailoraUi.AvatarColor(m.PersonEmail)">@MailoraUi.Initials(m.PersonName)</span>
+                        <span class="bd">
+                            <span class="nm">@m.PersonName@if (!m.IsRead) {<span class="unread-dot" title="Okunmamış"></span>}</span>
+                            <span class="sj d-block">@m.Subject</span>
+                            <span class="sn d-block">@m.Snippet</span>
+                        </span>
+                        <span class="tm">@MailoraUi.ShortTime(m.Date)</span>
+                    </a>
+                }
+                @if (!Model.RecentMessages.Any())
+                {
+                    <div class="empty-list"><h6>Gelen kutunuz boş</h6></div>
+                }
+            </div>
+        </div>
+
+        <div class="db-card db-contacts">
+            <div class="db-card-head">
+                <div><h3>En Sık İletişim Kurulanlar</h3><p>Gelen ve gönderilen mesajlara göre</p></div>
+            </div>
+            @foreach (var c in Model.TopContacts)
+            {
+                <div class="db-contact">
+                    <span class="avatar @MailoraUi.AvatarColor(c.Email)">@MailoraUi.Initials(c.Name)</span>
+                    <div class="bd">
+                        <div class="nm">@c.Name</div>
+                        <div class="em">@c.Email</div>
+                        <div class="bar"><span style="width:@(Math.Round(c.Total * 100.0 / maxContact))%"></span></div>
+                    </div>
+                    <div class="cnt">@c.Total<small>mesaj</small></div>
+                    <a class="db-send" asp-controller="Message" asp-action="CreateMessage" asp-route-to="@c.Email" title="@c.Name kişisine mesaj gönder"><i class="bi bi-send"></i></a>
+                </div>
+            }
+            @if (!Model.TopContacts.Any())
+            {
+                <div class="empty-list"><h6>Henüz yazışma yok</h6></div>
+            }
+        </div>
+
+        <div class="db-side">
+            <div class="db-card">
+                <div class="db-card-head"><div><h3>Hızlı İşlemler</h3></div></div>
+                <div class="db-quick-grid">
+                    <a class="db-tile t-lav" asp-controller="Message" asp-action="CreateMessage"><i class="bi bi-pencil-square"></i><span>Yeni Mesaj<small>Mesaj oluştur</small></span></a>
+                    <a class="db-tile t-blue" href="@Inbox()"><i class="bi bi-inbox"></i><span>Gelen Kutusu<small>@Model.UnreadCount okunmamış</small></span></a>
+                    <a class="db-tile t-mint" asp-controller="Message" asp-action="Drafts"><i class="bi bi-file-earmark-text"></i><span>Taslaklar<small>@Model.DraftCount taslak</small></span></a>
+                    <a class="db-tile t-peach" asp-controller="Profile" asp-action="Index"><i class="bi bi-person-gear"></i><span>Profilim<small>Bilgileri düzenle</small></span></a>
+                </div>
+            </div>
+
+            <div class="db-card">
+                <div class="db-card-head"><div><h3>Kutu Özeti</h3></div></div>
+                <ul class="pf-list">
+                    <li><span class="k"><i class="bi bi-inbox"></i> Gelen</span><span class="v">@Model.InboxCount mesaj</span></li>
+                    <li><span class="k"><i class="bi bi-send"></i> Gönderilen</span><span class="v">@Model.SentCount mesaj</span></li>
+                    <li><span class="k"><i class="bi bi-file-earmark-text"></i> Taslak</span><span class="v">@Model.DraftCount taslak</span></li>
+                    <li><span class="k"><i class="bi bi-trash3"></i> Çöp kutusu</span><span class="v">@Model.TrashCount mesaj</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (() => {
+            const traffic = {
+                labels: @Json.Serialize(Model.TrafficLabels),
+                inc: @Json.Serialize(Model.TrafficIncoming),
+                sent: @Json.Serialize(Model.TrafficSent)
+            };
+            const dist = @Json.Serialize(Model.CategoryDistribution.Select(c => new { label = c.Name, value = c.Count, color = c.Color }));
+
+            const fallback = canvas => {
+                if (canvas && canvas.parentElement)
+                    canvas.parentElement.innerHTML = '<div class="db-chart-empty"><div><i class="bi bi-graph-up"></i>Grafik kütüphanesi yüklenemedi.<br>İnternet bağlantınızı kontrol edin.</div></div>';
+            };
+            const tCanvas = document.getElementById('dbTraffic'), dCanvas = document.getElementById('dbDonut');
+            if (typeof Chart === 'undefined') { fallback(tCanvas); fallback(dCanvas); return; }
+
+            Chart.defaults.font.family = "'Plus Jakarta Sans', system-ui, sans-serif";
+            Chart.defaults.color = '#85899B';
+            const tooltip = {
+                backgroundColor: '#2E3045', titleColor: '#fff', bodyColor: '#E4E1F5',
+                padding: 12, cornerRadius: 10, boxPadding: 5, usePointStyle: true,
+                titleFont: { weight: '700', size: 12.5 }, bodyFont: { size: 12.5 }
+            };
+            const softFill = hex => ctx => {
+                const { chart } = ctx, { ctx: g, chartArea } = chart;
+                if (!chartArea) return 'transparent';
+                const gr = g.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                gr.addColorStop(0, hex + '40'); gr.addColorStop(1, hex + '00');
+                return gr;
+            };
+            const line = (label, data, color) => ({
+                label, data, borderColor: color, backgroundColor: softFill(color), fill: true, tension: .4, borderWidth: 2.5,
+                pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#fff', pointBorderColor: color, pointBorderWidth: 2
+            });
+
+            const trafficChart = new Chart(tCanvas, {
+                type: 'line',
+                data: { labels: traffic.labels, datasets: [line('Gelen Mesajlar', traffic.inc, '#8B7FD6'), line('Gönderilen Mesajlar', traffic.sent, '#6FA8E8')] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { display: false }, tooltip },
+                    scales: {
+                        x: { grid: { display: false }, border: { display: false }, ticks: { color: '#A6A9B8', maxRotation: 0, autoSkip: true, maxTicksLimit: 7, font: { size: 11.5 } } },
+                        y: { beginAtZero: true, grid: { color: '#F1F0F8' }, border: { display: false }, ticks: { color: '#A6A9B8', padding: 10, maxTicksLimit: 5, precision: 0, font: { size: 11.5 } } }
+                    }
+                }
+            });
+
+            
+            document.querySelectorAll('[data-ds]').forEach(b => b.addEventListener('click', () => {
+                const i = +b.dataset.ds, visible = trafficChart.isDatasetVisible(i);
+                trafficChart.setDatasetVisibility(i, !visible);
+                b.classList.toggle('off', visible);
+                trafficChart.update();
+            }));
+
+            if (dCanvas && dist.length) {
+                const total = dist.reduce((a, d) => a + d.value, 0);
+                new Chart(dCanvas, {
+                    type: 'doughnut',
+                    data: { labels: dist.map(d => d.label), datasets: [{ data: dist.map(d => d.value), backgroundColor: dist.map(d => d.color), borderWidth: 0, borderRadius: 6, spacing: 3, hoverOffset: 6 }] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, cutout: '74%',
+                        plugins: { legend: { display: false }, tooltip: { ...tooltip, callbacks: { label: c => ` ${c.label}: ${c.parsed} (%${Math.round(c.parsed / Math.max(total, 1) * 100)})` } } }
+                    }
+                });
+            }
+        })();
+    </script>
+}
